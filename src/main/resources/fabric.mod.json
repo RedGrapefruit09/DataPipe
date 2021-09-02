@@ -1,0 +1,22 @@
+{
+    "schemaVersion": 1,
+    "id": "datapipe",
+    "version": "${version}",
+    "name": "DataPipe",
+    "description": "Utilities to make custom server/client resources easier",
+    "authors": [
+        "RedGrapefruit09"
+    ],
+    "contact": {
+        "repo": "https://github.com/RedGrapefruit09/DataPipe"
+    },
+    "license": "MIT",
+    "icon": "assets/datapipe/icon.png",
+    "environment": "*",
+    "entrypoints": {},
+    "depends": {
+        "fabricloader": ">=0.11.6",
+        "fabric": "*",
+        "minecraft": "1.17.1"
+    }
+}
