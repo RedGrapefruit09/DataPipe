@@ -26,7 +26,7 @@ abstract class PipeResourceLoader<T> : SimpleSynchronousResourceReloadListener {
 
         val resources = manager.findResources(pipeline.resourceFolder, pipeline.filter)
         resources.forEach { resourceId ->
-            val output = load(manager.getResource(resourceId).inputStream) // load
+            val output = load(manager.getResource(resourceId).inputStream, resourceId) // load
 
             pipeline.put(output.id, output.value) // add to pipeline
             ResourceLoadCallback.EVENT.invoker().onLoad(pipeline, output.value, output.id) // invoke event
@@ -36,7 +36,7 @@ abstract class PipeResourceLoader<T> : SimpleSynchronousResourceReloadListener {
     /**
      * Load the resource from a raw [InputStream] and put the resource ID and object into a [PipelineOutput]
      */
-    abstract fun load(stream: InputStream): PipelineOutput
+    abstract fun load(stream: InputStream, id: Identifier): PipelineOutput
 
     // Registering
     companion object {
