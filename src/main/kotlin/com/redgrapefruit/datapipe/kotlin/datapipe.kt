@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener
 import net.minecraft.resource.ResourceManager
 import net.minecraft.resource.ResourceType
 import net.minecraft.util.Identifier
+import org.jetbrains.annotations.ApiStatus
 import java.io.InputStream
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
@@ -80,7 +81,17 @@ data class Pipeline<T>(
 
     internal val contents: MutableMap<Identifier, T> = mutableMapOf()
 ) {
-    internal fun get(id: Identifier): T? = contents[id]
+    /**
+     * Returns a resource from this [Pipeline]. Nullable.
+     *
+     * Using a property with a [fetchFromPipeline] delegate is preferred for most of the time.
+     */
+    fun get(id: Identifier): T? = contents[id]
+
+    /**
+     * A less safe version of [get] that throws a [NullPointerException] if not found
+     */
+    fun getOrThrow(id: Identifier): T = get(id) ?: throw NullPointerException("Resource not found: $id")
 
     internal fun clear(): Unit = contents.clear()
 
@@ -97,6 +108,8 @@ data class Pipeline<T>(
         /**
          * A helpful utility to create a [Pipeline] filter by a specific extension
          */
+        @Deprecated("Please use Builder.filterByExtension")
+        @ApiStatus.ScheduledForRemoval(inVersion = "1.3")
         fun filterByExtension(extension: String): (String) -> Boolean {
             return { name -> name.endsWith(extension) }
         }
@@ -122,6 +135,16 @@ data class Pipeline<T>(
 
         fun filter(filter: (String) -> Boolean): Builder<T> {
             this.filter = filter
+            return this
+        }
+
+        fun filterByExtension(extension: String): Builder<T> {
+            this.filter = { name -> name.endsWith(extension) }
+            return this
+        }
+
+        fun noFilter(): Builder<T> {
+            this.filter = { _ -> true }
             return this
         }
 
