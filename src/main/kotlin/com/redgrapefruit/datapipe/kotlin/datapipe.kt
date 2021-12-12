@@ -104,15 +104,6 @@ data class Pipeline<T>(
          * Creates a new instance of a [Builder]
          */
         fun <T> builder() = Builder<T>()
-
-        /**
-         * A helpful utility to create a [Pipeline] filter by a specific extension
-         */
-        @Deprecated("Please use Builder.filterByExtension")
-        @ApiStatus.ScheduledForRemoval(inVersion = "1.3")
-        fun filterByExtension(extension: String): (String) -> Boolean {
-            return { name -> name.endsWith(extension) }
-        }
     }
 
     /**

@@ -1,7 +1,7 @@
 {
     "schemaVersion": 1,
     "id": "datapipe",
-    "version": "${version}",
+    "version": "1.3",
     "name": "DataPipe",
     "description": "Utilities to make custom server/client resources easier",
     "authors": [
@@ -15,8 +15,8 @@
     "environment": "*",
     "entrypoints": {},
     "depends": {
-        "fabricloader": ">=0.11.6",
+        "fabricloader": ">=0.12.11",
         "fabric": "*",
-        "minecraft": "1.17.1"
+        "minecraft": "1.18.1"
     }
 }
