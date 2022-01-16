@@ -180,13 +180,13 @@ data class PipelineOutput(
 /**
  * [ResourceLoadCallback] provides the ability for you to post-process a [Pipeline] resource right after its load.
  */
-interface ResourceLoadCallback {
+fun interface ResourceLoadCallback {
     fun onLoad(pipeline: Pipeline<*>, resource: Any, id: Identifier)
 
     companion object {
         internal val EVENT = EventFactory.createArrayBacked(ResourceLoadCallback::class.java)
         { listeners ->
-            Impl { pipeline, resource, id ->
+            ResourceLoadCallback { pipeline, resource, id ->
                 listeners.forEach { listener -> listener.onLoad(pipeline, resource, id) }
             }
         }
@@ -194,13 +194,9 @@ interface ResourceLoadCallback {
         /**
          * Registers a listener for this event
          */
-        fun register(action: (Pipeline<*>, Any, Identifier) -> Unit) {
-            EVENT.register(Impl(action))
+        fun register(action: ResourceLoadCallback) {
+            EVENT.register(action)
         }
-    }
-
-    private class Impl(private val implementation: (Pipeline<*>, Any, Identifier) -> Unit) : ResourceLoadCallback {
-        override fun onLoad(pipeline: Pipeline<*>, resource: Any, id: Identifier) = implementation(pipeline, resource, id)
     }
 }
 
