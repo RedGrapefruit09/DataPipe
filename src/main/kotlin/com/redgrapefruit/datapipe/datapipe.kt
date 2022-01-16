@@ -178,24 +178,6 @@ data class PipelineOutput(
 )
 
 /**
- * Allows for registering [Pipeline]s into the system
- */
-object Pipelines {
-    private val pipelines: MutableMap<Identifier, Pipeline<*>> = mutableMapOf()
-
-    /**
-     * Registers a [Pipeline] under an [Identifier]
-     */
-    fun register(id: Identifier, pipeline: Pipeline<*>) {
-        pipelines[id] = pipeline
-    }
-
-    internal fun get(id: Identifier): Pipeline<*> {
-        return pipelines[id]!!
-    }
-}
-
-/**
  * [ResourceLoadCallback] provides the ability for you to post-process a [Pipeline] resource right after its load.
  */
 interface ResourceLoadCallback {
@@ -251,12 +233,30 @@ class ResourceHandle<T>(
      * Even when the function, is called **there's no not-`null` guarantee**, so the resource could still be null!
      * Be careful!
      */
-    inline fun getOr(action: () -> Unit): T? {
+    inline fun getOrDo(action: () -> Unit): T? {
         val value = tryGet()
 
         if (value == null) action.invoke()
 
         return value
+    }
+
+    /**
+     * Tries to get the resource value, if it's `null`, obtains the value from the given function's result.
+     */
+    inline fun getOrUse(action: () -> T): T {
+        var value = tryGet()
+
+        if (value == null) value = action.invoke()
+
+        return value!!
+    }
+
+    /**
+     * Tries to get the resource value, if it's `null`, uses the given [fallback] value.
+     */
+    fun getOrUse(fallback: T): T {
+        return getOrUse { fallback }
     }
 
     /**
