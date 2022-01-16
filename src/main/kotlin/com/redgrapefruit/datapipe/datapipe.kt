@@ -1,4 +1,4 @@
-package com.redgrapefruit.datapipe.kotlin
+package com.redgrapefruit.datapipe
 
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.json.Json
