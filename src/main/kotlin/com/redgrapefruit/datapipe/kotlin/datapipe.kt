@@ -1,15 +1,14 @@
 package com.redgrapefruit.datapipe.kotlin
 
+import kotlinx.serialization.DeserializationStrategy
+import kotlinx.serialization.json.Json
 import net.fabricmc.fabric.api.event.EventFactory
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener
 import net.minecraft.resource.ResourceManager
 import net.minecraft.resource.ResourceType
 import net.minecraft.util.Identifier
-import org.jetbrains.annotations.ApiStatus
 import java.io.InputStream
-import kotlin.properties.ReadOnlyProperty
-import kotlin.reflect.KProperty
 
 /**
  * The [PipeResourceLoader] is a base loader for all pipeline resources.
@@ -39,6 +38,12 @@ abstract class PipeResourceLoader<T> : SimpleSynchronousResourceReloadListener {
      */
     abstract fun load(stream: InputStream, id: Identifier): PipelineOutput
 
+    protected fun readStreamContent(stream: InputStream): String {
+        stream.use {
+            return stream.readBytes().decodeToString()
+        }
+    }
+
     // Registering
     companion object {
         /**
@@ -54,6 +59,28 @@ abstract class PipeResourceLoader<T> : SimpleSynchronousResourceReloadListener {
         fun <T> registerServer(loader: PipeResourceLoader<T>) {
             ResourceManagerHelper.get(ResourceType.SERVER_DATA).registerReloadListener(loader)
         }
+    }
+}
+
+/**
+ * A built-in [PipeResourceLoader] for loading in JSON data with `kotlinx.serialization`.
+ */
+open class JsonResourceLoader<T : Any>(
+    private val mod: String,
+    private val serializer: DeserializationStrategy<T>,
+    override val pipeline: Pipeline<T>
+) : PipeResourceLoader<T>() {
+
+    override fun load(stream: InputStream, id: Identifier): PipelineOutput {
+        val content = readStreamContent(stream)
+        val obj: T = Json.decodeFromString(serializer, content)
+        val name = parseName(id)
+
+        return PipelineOutput(obj, Identifier(mod, name))
+    }
+
+    open fun parseName(id: Identifier): String {
+        return id.toString().replace("$mod:${pipeline.resourceFolder}/", "").replace(".json", "")
     }
 }
 
@@ -81,23 +108,16 @@ data class Pipeline<T>(
 
     internal val contents: MutableMap<Identifier, T> = mutableMapOf()
 ) {
-    /**
-     * Returns a resource from this [Pipeline]. Nullable.
-     *
-     * Using a property with a [fetchFromPipeline] delegate is preferred for most of the time.
-     */
-    fun get(id: Identifier): T? = contents[id]
-
-    /**
-     * A less safe version of [get] that throws a [NullPointerException] if not found
-     */
-    fun getOrThrow(id: Identifier): T = get(id) ?: throw NullPointerException("Resource not found: $id")
-
     internal fun clear(): Unit = contents.clear()
 
     internal fun put(id: Identifier, value: Any) {
         contents[id] = value as T
     }
+
+    /**
+     * Returns a [ResourceHandle] for a resource at a given [id] from this pipeline.
+     */
+    fun resource(id: Identifier) = ResourceHandle(this, id)
 
     companion object {
         /**
@@ -203,30 +223,69 @@ interface ResourceLoadCallback {
 }
 
 /**
- * A [PipelineFetchDelegate] is used to actually **use** a [Pipeline] resource in your code after it's loaded.
- *
- * Example:
- * ```kotlin
- * val starConfig by fetchFromPipeline(ModPipelines.STAR_CONFIG, new Identifier("example_mod", "name_of_my_star_config"))
- * ```
- *
- * This delegate is created via the [fetchFromPipeline] helper.
- *
- * **DANGER:** be careful when fetching a [Pipeline] resource, since **it will only be available after world-load**.
- * Any login/auth/menu resources are inherently _impossible_ using the built-in Minecraft system.
+ * A [ResourceHandle] provides a safe way of accessing resources.
  */
-private class PipelineFetchDelegate<T>(
-    private val pipeline: Pipeline<T>,
-    private val id: Identifier) : ReadOnlyProperty<Any, T> {
+class ResourceHandle<T>(
+    @PublishedApi internal val pipeline: Pipeline<T>,
+    @PublishedApi internal val id: Identifier
+) {
+    /**
+     *  Returns the resource value, without any guarantees it's not `null`
+     */
+    fun tryGet(): T? {
+        return pipeline.contents[id]
+    }
 
-    override fun getValue(thisRef: Any, property: KProperty<*>): T {
-        return pipeline.get(id) ?: throw RuntimeException("Tried to access resource $id too early!")
+    /**
+     * Tries to return the resource value, else throws an [ResourceAccessedEarlyException].
+     *
+     * **Avoid this in favor of [ifAvailable], if possible!**
+     */
+    fun getOrThrow(): T {
+        return pipeline.contents[id] ?: throw ResourceAccessedEarlyException("$id isn't available yet!")
+    }
+
+    /**
+     * Tries to get the resource value, if it's `null`, calls the given function.
+     *
+     * Even when the function, is called **there's no not-`null` guarantee**, so the resource could still be null!
+     * Be careful!
+     */
+    inline fun getOr(action: () -> Unit): T? {
+        val value = tryGet()
+
+        if (value == null) action.invoke()
+
+        return value
+    }
+
+    /**
+     * Returns if the resource is currently available
+     */
+    fun isAvailable(): Boolean {
+        return pipeline.contents.contains(id)
+    }
+
+    /**
+     * **Preferred resource-handling method**.
+     *
+     * If the resource is available, performs some operation with it.
+     */
+    inline fun ifAvailable(action: (T) -> Unit) {
+        if (isAvailable()) action.invoke(getOrThrow())
+    }
+
+    /**
+     * Opposite of [ifAvailable], performs some operation if the resource is currently unavailable.
+     */
+    inline fun ifUnavailable(action: () -> Unit) {
+        if (!isAvailable()) action.invoke()
+    }
+
+    companion object {
+        /** A wrapper for the class's constructor. */
+        fun <T> of(pipeline: Pipeline<T>, id: Identifier) = ResourceHandle(pipeline, id)
     }
 }
 
-/**
- * Creates an instance of [PipelineFetchDelegate]
- */
-fun <T> fetchFromPipeline(pipeline: Pipeline<T>, id: Identifier): ReadOnlyProperty<Any, T> {
-    return PipelineFetchDelegate(pipeline, id)
-}
+class ResourceAccessedEarlyException(msg: String) : RuntimeException(msg)
