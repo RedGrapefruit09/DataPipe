@@ -223,18 +223,14 @@ class ResourceHandle<T>(
         return pipeline.contents[id] ?: throw ResourceAccessedEarlyException("$id isn't available yet!")
     }
 
-    /**
-     * Tries to get the resource value, if it's `null`, calls the given function.
-     *
-     * Even when the function, is called **there's no not-`null` guarantee**, so the resource could still be null!
-     * Be careful!
-     */
-    inline fun getOrDo(action: () -> Unit): T? {
-        val value = tryGet()
+    /** A variant of [getOrThrow] that uses a custom exception */
+    fun getOrThrow(exception: Exception): T {
+        return pipeline.contents[id] ?: throw exception
+    }
 
-        if (value == null) action.invoke()
-
-        return value
+    /** A variant of [getOrThrow] that uses an exception returned by the given lambda supplier */
+    fun getOrThrow(exceptionSupplier: () -> Exception): T {
+        return pipeline.contents[id] ?: throw exceptionSupplier.invoke()
     }
 
     /**
