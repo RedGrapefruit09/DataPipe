@@ -101,8 +101,6 @@ data class Pipeline<T>(
     val resourceFolder: String,
     /**
      * The filter for the files of this resource.
-     *
-     * If you want to filter by extension (for example, `.json`), please use the [filterByExtension] helper
      */
     val filter: (String) -> Boolean,
 
