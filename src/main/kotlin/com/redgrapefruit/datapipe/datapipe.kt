@@ -25,8 +25,8 @@ abstract class PipeResourceLoader<T> : SimpleSynchronousResourceReloadListener {
         pipeline.clear() // clear the caches
 
         val resources = manager.findResources(pipeline.resourceFolder, pipeline.filter)
-        resources.forEach { resourceId ->
-            val output = load(manager.getResource(resourceId).inputStream, resourceId) // load
+        resources.forEach { (id, resource) ->
+            val output = load(resource.inputStream, id) // load
 
             pipeline.put(output.id, output.value) // add to pipeline
             ResourceLoadCallback.EVENT.invoker().onLoad(pipeline, output.value, output.id) // invoke event
@@ -102,7 +102,7 @@ data class Pipeline<T>(
     /**
      * The filter for the files of this resource.
      */
-    val filter: (String) -> Boolean,
+    val filter: (Identifier) -> Boolean,
 
     internal val contents: MutableMap<Identifier, T> = mutableMapOf()
 ) {
@@ -130,7 +130,7 @@ data class Pipeline<T>(
     class Builder<T> internal constructor() {
         private var id: Identifier? = null
         private var resourceFolder: String? = null
-        private var filter: ((String) -> Boolean)? = null
+        private var filter: ((Identifier) -> Boolean)? = null
 
         fun underId(id: Identifier): Builder<T> {
             this.id = id
@@ -142,13 +142,13 @@ data class Pipeline<T>(
             return this
         }
 
-        fun filter(filter: (String) -> Boolean): Builder<T> {
+        fun filter(filter: (Identifier) -> Boolean): Builder<T> {
             this.filter = filter
             return this
         }
 
         fun filterByExtension(extension: String): Builder<T> {
-            this.filter = { name -> name.endsWith(extension) }
+            this.filter = { id -> id.toString().endsWith(extension) }
             return this
         }
 
